@@ -10,6 +10,7 @@ voorgelezen, ziet elk woord oplichten en krijgt de Nederlandse betekenis er dire
 - Per zin pauzeren (standaard aan), stil herhalen (zelf meespreken) of opnieuw beluisteren
 - Instelbare leessnelheid (0,6× tot 1,15×), zonder dat de stem hoger of lager gaat klinken
 - Vervoegingen van werkwoorden bij mouse-over
+- Caching per zin: elke zin wordt maar één keer opgehaald en betaald, herlezen is gratis (zie [Caching](#caching))
 
 ## Wat je nodig hebt
 
@@ -131,10 +132,36 @@ Gebruik een eigen subdomein, bijvoorbeeld `voix.jouwdomein.nl`: de pagina gebrui
 | Franse vervoegingen | Databestand [french-verbs-lefff](https://www.npmjs.com/package/french-verbs-lefff) |
 | Spaanse vervoegingen | Regelgebaseerd, via [spanish-verbs](https://www.npmjs.com/package/spanish-verbs) |
 
-Audio en vertalingen worden per zin opgehaald en bewaard in `cache/`, zodat elke zin maar één keer
-geld kost. Het geladen boek staat in `data/book.json`. Beide mappen en `.env` staan niet in git.
+Er kan één boek tegelijk geladen zijn; een nieuw boek vervangt het vorige. Het geladen boek staat in
+`data/book.json`.
 
-Er kan één boek tegelijk geladen zijn; een nieuw boek vervangt het vorige.
+## Caching
+
+De app bewaart alles wat hij per zin ophaalt in de map `cache/`: de audio, de woordtijden, de Nederlandse
+vertaling en de herkende werkwoorden. Een zin wordt dus **maar één keer opgehaald en betaald**; daarna
+komt hij van schijf.
+
+Waarom dat een voordeel is:
+
+- **Goedkoop:** ElevenLabs rekent per teken en Claude per token. Een boek dat je een tweede of derde keer
+  leest, of een zin die je tien keer herhaalt, kost niets extra.
+- **Snel:** een zin uit de cache is er direct. Een nieuwe zin kost enkele seconden; de app haalt daarom
+  alvast de volgende zin op terwijl je luistert.
+- **Altijd dezelfde stem en vertaling:** de uitspraak en betekenis blijven bij herhaling gelijk, ook na
+  herstarten of verhuizen van de server.
+- **Eén zin, één keer:** wordt dezelfde zin door twee mensen of twee boeken tegelijk gevraagd, dan gaat
+  er maar één aanvraag naar de dienst.
+
+Hoe de cache werkt:
+
+- Een zin staat in de cache op basis van zijn tekst, de stem (`ELEVENLABS_VOICE_ID`) en het ElevenLabs-model.
+  Pas je de tekst van een zin aan of kies je een andere stem, dan wordt alleen dat opnieuw opgehaald.
+- Mislukte aanvragen worden niet bewaard en worden de volgende keer opnieuw geprobeerd.
+- De vervoegingen bij mouse-over komen uit een bestand en kosten nooit iets.
+- Een uur audio is ongeveer 55 MB. De map groeit dus mee met wat je leest; je kunt hem veilig (deels)
+  verwijderen, de app haalt wat ontbreekt dan opnieuw op.
+- `cache/`, `data/` en `.env` staan niet in git. Op een nieuwe server begin je met een lege cache, tenzij
+  je de map `cache/` meekopieert.
 
 ## Bestanden
 
