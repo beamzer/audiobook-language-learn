@@ -60,16 +60,13 @@ Gebruik een eigen subdomein, bijvoorbeeld `voix.jouwdomein.nl`: de pagina gebrui
    sudo htpasswd -c /etc/apache2/voix.htpasswd jouwnaam
    ```
 
-2. Virtual host (https is verplicht, anders gaat het wachtwoord leesbaar over het internet; een
-   certificaat haal je met `sudo certbot --apache -d voix.jouwdomein.nl`):
+2. Virtual host. Begin met een gewone http-host op poort 80; certbot maakt daar zelf de https-host
+   van (met de certificaatregels) en neemt de rest over. Zet je meteen SSL-regels met nog niet
+   bestaande certificaatbestanden in de config, dan start Apache niet en lukt certbot niet.
 
    ```apache
-   <VirtualHost *:443>
+   <VirtualHost *:80>
        ServerName voix.jouwdomein.nl
-
-       SSLEngine on
-       SSLCertificateFile    /etc/letsencrypt/live/voix.jouwdomein.nl/fullchain.pem
-       SSLCertificateKeyFile /etc/letsencrypt/live/voix.jouwdomein.nl/privkey.pem
 
        <Location />
            AuthType Basic
@@ -87,6 +84,15 @@ Gebruik een eigen subdomein, bijvoorbeeld `voix.jouwdomein.nl`: de pagina gebrui
 
    `ProxyTimeout 120` is nodig omdat een zin die voor het eerst wordt opgehaald (ElevenLabs en Claude)
    enkele seconden kan duren.
+
+   Laad de config en vraag het certificaat aan. Kies bij de vraag over doorsturen voor een redirect
+   naar https; https is verplicht, anders gaat het wachtwoord leesbaar over het internet. Het domein
+   moet dan al naar de server wijzen en poort 80 moet bereikbaar zijn.
+
+   ```bash
+   sudo apache2ctl configtest && sudo systemctl reload apache2
+   sudo certbot --apache -d voix.jouwdomein.nl
+   ```
 
 3. De app laten draaien met systemd, in `/etc/systemd/system/voix.service`:
 
