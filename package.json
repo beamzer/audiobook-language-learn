@@ -1,0 +1,13 @@
+{
+  "name": "audiobook-language-learn",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "french-verbs-lefff": "^3.4.0",
+    "spanish-verbs": "^3.4.0"
+  }
+}
