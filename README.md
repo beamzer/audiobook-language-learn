@@ -43,10 +43,75 @@ Herstart daarna de server.
 ## Op een webserver
 
 De server luistert alleen op `127.0.0.1` en heeft **geen inlog**. Zet er een reverse proxy met
-toegangsbeveiliging voor (bijvoorbeeld nginx of Caddy met basic auth). Zonder beveiliging kan iedereen
-die het adres kent audio en vertalingen laten genereren op kosten van jouw API-sleutels.
+toegangsbeveiliging voor. Zonder beveiliging kan iedereen die het adres kent audio en vertalingen
+laten genereren op kosten van jouw API-sleutels.
 
 De poort stel je in met `PORT` in `.env`.
+
+### Apache als voorkant (met wachtwoord en https)
+
+Gebruik een eigen subdomein, bijvoorbeeld `voix.jouwdomein.nl`: de pagina gebruikt absolute paden
+(`/api/...`, `/audio/...`), dus onder een subpad werkt het niet. De commando's gelden voor Debian/Ubuntu.
+
+1. Modules en wachtwoordbestand:
+
+   ```bash
+   sudo a2enmod proxy proxy_http ssl headers
+   sudo htpasswd -c /etc/apache2/voix.htpasswd jouwnaam
+   ```
+
+2. Virtual host (https is verplicht, anders gaat het wachtwoord leesbaar over het internet; een
+   certificaat haal je met `sudo certbot --apache -d voix.jouwdomein.nl`):
+
+   ```apache
+   <VirtualHost *:443>
+       ServerName voix.jouwdomein.nl
+
+       SSLEngine on
+       SSLCertificateFile    /etc/letsencrypt/live/voix.jouwdomein.nl/fullchain.pem
+       SSLCertificateKeyFile /etc/letsencrypt/live/voix.jouwdomein.nl/privkey.pem
+
+       <Location />
+           AuthType Basic
+           AuthName "Voix"
+           AuthUserFile /etc/apache2/voix.htpasswd
+           Require valid-user
+       </Location>
+
+       ProxyPreserveHost On
+       ProxyTimeout 120
+       ProxyPass        / http://127.0.0.1:3000/
+       ProxyPassReverse / http://127.0.0.1:3000/
+   </VirtualHost>
+   ```
+
+   `ProxyTimeout 120` is nodig omdat een zin die voor het eerst wordt opgehaald (ElevenLabs en Claude)
+   enkele seconden kan duren.
+
+3. De app laten draaien met systemd, in `/etc/systemd/system/voix.service`:
+
+   ```ini
+   [Unit]
+   Description=Voix
+   After=network.target
+
+   [Service]
+   WorkingDirectory=/pad/naar/audiobook-language-learn
+   ExecStart=/usr/bin/node --env-file-if-exists=.env server.js
+   Restart=on-failure
+   User=jouwgebruiker
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+   Controleer met `which node` of het pad klopt en of het Node 22.9 of nieuwer is. Starten:
+
+   ```bash
+   sudo systemctl enable --now voix
+   ```
+
+   Na een `git pull` herstart je met `sudo systemctl restart voix`.
 
 ## Hoe het werkt
 
