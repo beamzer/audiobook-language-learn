@@ -3,6 +3,8 @@
 Webapp om Frans of Spaans te leren met een voorgelezen boek. Je plakt een tekst, hoort die zin voor zin
 voorgelezen, ziet elk woord oplichten en krijgt de Nederlandse betekenis er direct onder.
 
+![Voix in gebruik: een Franse zin met de Nederlandse betekenis onder elk woord en de vervoegingen van "faire" bij mouse-over](voix-in-action.png)
+
 - Woord-voor-woord highlighting, gelijk met de stem
 - Nederlandse betekenis per woord, plus een vertaling van de hele zin
 - Per zin pauzeren (standaard aan), stil herhalen (zelf meespreken) of opnieuw beluisteren
