@@ -5,7 +5,8 @@ voorgelezen, ziet elk woord oplichten en krijgt de Nederlandse betekenis er dire
 
 - Woord-voor-woord highlighting, gelijk met de stem
 - Nederlandse betekenis per woord, plus een vertaling van de hele zin
-- Per zin pauzeren, stil herhalen (zelf meespreken) of opnieuw beluisteren
+- Per zin pauzeren (standaard aan), stil herhalen (zelf meespreken) of opnieuw beluisteren
+- Instelbare leessnelheid (0,6× tot 1,15×), zonder dat de stem hoger of lager gaat klinken
 - Vervoegingen van werkwoorden bij mouse-over
 
 ## Wat je nodig hebt
