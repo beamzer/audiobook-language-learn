@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voix — beheer</title>
+<style>
+  :root {
+    --paper: #f5efe3; --paper-2: #fbf7ee; --ink: #1e1a15; --ink-soft: #8d8576; --line: #e2d9c7;
+    --accent: #b8472a; --accent-ink: #fff; --bad: #c0392b;
+    --shadow: 0 18px 50px -18px rgba(60, 40, 10, .35);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #13110e; --paper-2: #1c1915; --ink: #f0e9dc; --ink-soft: #857d6f; --line: #302b24;
+      --accent: #ef8f5e; --accent-ink: #1a0f08; --bad: #ff8a7a;
+      --shadow: 0 18px 50px -18px rgba(0, 0, 0, .8);
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; color: var(--ink); font: 15px/1.5 var(--sans); background: var(--paper);
+         -webkit-font-smoothing: antialiased; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; background: none; border: 0; padding: 0; }
+  button:disabled { cursor: default; opacity: .4; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+           max-width: 820px; margin: 0 auto; padding: 22px 24px 0; }
+  .brand { display: flex; align-items: baseline; gap: 10px; font: 600 1.35rem/1 var(--serif); }
+  .brand em { font: 500 .72rem/1 var(--sans); letter-spacing: .14em; text-transform: uppercase;
+              color: var(--ink-soft); font-style: normal; }
+  .brand b { color: var(--accent); }
+  .chip { display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+          border: 1px solid var(--line); background: var(--paper-2); font-size: .82rem; text-decoration: none;
+          color: inherit; }
+  .chip:hover { border-color: var(--accent); }
+
+  main { max-width: 820px; margin: 0 auto; padding: 5vh 24px 80px; }
+  h2 { font: 500 1.6rem/1.2 var(--serif); margin: 44px 0 6px; }
+  h2:first-child { margin-top: 0; }
+  .lead { color: var(--ink-soft); margin: 0 0 18px; max-width: 62ch; }
+
+  .card { background: var(--paper-2); border: 1px solid var(--line); border-radius: 22px; padding: 22px;
+          box-shadow: var(--shadow); }
+  .card-top { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  #title { flex: 1; min-width: 200px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line);
+           background: var(--paper); font: 1.05rem var(--serif); }
+  .seg { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); }
+  .seg label { position: relative; cursor: pointer; }
+  .seg input { position: absolute; opacity: 0; }
+  .seg span { display: block; padding: 7px 20px; border-radius: 999px; font-size: .88rem; color: var(--ink-soft); }
+  .seg input:checked + span { background: var(--ink); color: var(--paper); }
+  .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #drop { margin-top: 16px; border: 1.5px dashed var(--line); border-radius: 16px; }
+  #drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  #text { display: block; width: 100%; height: 200px; padding: 18px; border: 0; background: none; resize: vertical;
+          font: 1.05rem/1.6 var(--serif); outline: none; }
+  #text::placeholder, #title::placeholder { color: var(--ink-soft); }
+  .card-bot { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 18px; }
+  .cta { padding: 11px 24px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  #addStatus { color: var(--ink-soft); font-size: .88rem; }
+
+  #books { display: grid; gap: 12px; }
+  .book { padding: 18px 22px; }
+  .book-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .book b { display: block; font: 600 1.15rem/1.3 var(--serif); }
+  .book small { font-size: .84rem; color: var(--ink-soft); }
+  .bar { height: 4px; margin: 14px 0 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); transition: width .4s; }
+  .state { margin: 0; font-size: .84rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .err { margin: 6px 0 0; font-size: .84rem; color: var(--bad); white-space: pre-wrap; }
+  #empty { color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Voix<b>.</b> <em>beheer</em></div>
+  <a class="chip" href="/">Naar de boeken</a>
+</header>
+
+<main>
+  <h2>Nieuw boek</h2>
+  <p class="lead">Een boek toevoegen kost nog niets. Pas bij <b>Verwerken</b> wordt elke zin omgezet naar spraak
+    (ElevenLabs, per teken) en vertaald (Claude). Bezoekers zien een boek zodra de eerste zinnen klaar zijn.</p>
+  <div class="card">
+    <div class="card-top">
+      <input id="title" placeholder="Titel van het boek" aria-label="Titel van het boek">
+      <div class="seg" role="radiogroup" aria-label="Taal van het boek">
+        <label><input type="radio" name="lang" value="fr" checked><span>Frans</span></label>
+        <label><input type="radio" name="lang" value="es"><span>Spaans</span></label>
+      </div>
+      <label class="chip">Kies een .txt-bestand
+        <input type="file" id="file" accept=".txt,text/plain" hidden></label>
+    </div>
+    <div id="drop">
+      <textarea id="text" placeholder="Plak hier de tekst, of sleep een .txt-bestand in dit vak…"></textarea>
+    </div>
+    <div class="card-bot">
+      <button class="cta" id="add">Boek toevoegen</button>
+      <span id="addStatus"></span>
+    </div>
+  </div>
+
+  <h2>Boeken</h2>
+  <p id="empty" hidden>Er zijn nog geen boeken.</p>
+  <div id="books"></div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const LANGS = { fr: "Frans", es: "Spaans" };
+const num = (n) => n.toLocaleString("nl-NL");
+const el = (tag, text, cls) => {
+  const e = document.createElement(tag);
+  if (text != null) e.textContent = text;
+  if (cls) e.className = cls;
+  return e;
+};
+
+const post = (url, body) =>
+  fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
+
+let timer;
+
+async function refresh() {
+  clearTimeout(timer);
+  const books = await (await fetch("/admin/api/books")).json();
+  $("empty").hidden = books.length > 0;
+  $("books").replaceChildren(...books.map((b) => {
+    const card = el("div", null, "card book");
+    const top = el("div", null, "book-top");
+    const left = el("div");
+    left.append(el("b", b.title), el("small", `${LANGS[b.lang]} · ${num(b.total)} zinnen`));
+
+    const complete = b.done === b.total;
+    const btn = el("button", b.running ? "Stop" : b.done ? "Verder verwerken" : "Verwerken", "chip");
+    btn.hidden = complete && !b.running;
+    btn.onclick = async () => {
+      btn.disabled = true;
+      await post(`/admin/api/books/${b.id}/${b.running ? "stop" : "process"}`);
+      refresh();
+    };
+    top.append(left, btn);
+
+    const bar = el("div", null, "bar");
+    const fill = el("i");
+    fill.style.width = `${(b.done / b.total) * 100}%`;
+    bar.append(fill);
+
+    const state = complete ? "Klaar: het hele boek staat in de cache."
+      : `${num(b.done)} van ${num(b.total)} zinnen klaar · nog ${num(b.todoChars)} tekens naar ElevenLabs` +
+        (b.running ? " · bezig…" : "");
+    card.append(top, bar, el("p", state, "state"));
+    if (b.error) card.append(el("p", `Gestopt door een fout. ${b.error}`, "err"));
+    return card;
+  }));
+  if (books.some((b) => b.running)) timer = setTimeout(refresh, 2000);
+}
+
+const readFile = async (f) => {
+  if (!f) return;
+  $("text").value = await f.text();
+  if (!$("title").value) $("title").value = f.name.replace(/\.[^.]+$/, "");
+};
+$("file").onchange = (e) => readFile(e.target.files[0]);
+$("drop").ondragover = (e) => { e.preventDefault(); $("drop").className = "over"; };
+$("drop").ondragleave = () => { $("drop").className = ""; };
+$("drop").ondrop = (e) => { e.preventDefault(); $("drop").className = ""; readFile(e.dataTransfer.files[0]); };
+
+$("add").onclick = async () => {
+  $("addStatus").textContent = "Bezig…";
+  const res = await post("/admin/api/books", {
+    title: $("title").value,
+    text: $("text").value,
+    lang: document.querySelector("input[name=lang]:checked").value,
+  });
+  const data = await res.json();
+  if (!res.ok) return ($("addStatus").textContent = data.error);
+  $("addStatus").textContent = "Toegevoegd. Klik hieronder op Verwerken om het boek om te zetten.";
+  $("title").value = $("text").value = "";
+  refresh();
+};
+
+refresh();
+</script>
+</body>
+</html>

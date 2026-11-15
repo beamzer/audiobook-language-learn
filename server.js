@@ -8,16 +8,16 @@ import frVerbs from "french-verbs-lefff/dist/conjugations.json" with { type: "js
 import esVerbs from "spanish-verbs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const CACHE = path.join(here, "cache");
-const BOOK = path.join(here, "data", "book.json");
+const BOOKS = path.join(here, "books"); // per boek een map: book.json plus de cache van elke zin
 const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 const VOICE = process.env.ELEVENLABS_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb";
 const TTS_MODEL = "eleven_multilingual_v2";
 const LANGS = { fr: "Frans", es: "Spaans" };
 
-const hash = (text) =>
-  crypto.createHash("sha1").update(`${VOICE}|${TTS_MODEL}|${text}`).digest("hex");
+const hash = (voice, text) =>
+  crypto.createHash("sha1").update(`${voice}|${TTS_MODEL}|${text}`).digest("hex");
 
 const readJson = async (file) => {
   try {
@@ -28,6 +28,12 @@ const readJson = async (file) => {
   }
 };
 
+// Eerst naar een tijdelijk bestand: een half geschreven bestand komt zo nooit in de cache.
+async function writeFile(file, data) {
+  await fs.writeFile(`${file}.tmp`, data);
+  await fs.rename(`${file}.tmp`, file);
+}
+
 function splitSentences(text, lang) {
   const flat = text.replace(/\s+/g, " ").trim();
   const seg = new Intl.Segmenter(lang, { granularity: "sentence" });
@@ -36,8 +42,8 @@ function splitSentences(text, lang) {
 
 // --- ElevenLabs: audio + tijdstempels per woord -----------------------------
 
-async function getTts(h, text, prev, next) {
-  const file = path.join(CACHE, `${h}.tts.json`);
+async function getTts(dir, h, voice, text, prev, next) {
+  const file = path.join(dir, `${h}.tts.json`);
   const cached = await readJson(file);
   if (cached) return cached;
 
@@ -45,7 +51,7 @@ async function getTts(h, text, prev, next) {
   if (!key) throw new Error("ELEVENLABS_API_KEY ontbreekt in .env");
 
   const res = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${VOICE}/with-timestamps?output_format=mp3_44100_128`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps?output_format=mp3_44100_128`,
     {
       method: "POST",
       headers: { "xi-api-key": key, "content-type": "application/json" },
@@ -70,8 +76,8 @@ async function getTts(h, text, prev, next) {
   });
 
   const data = { words };
-  await fs.writeFile(path.join(CACHE, `${h}.mp3`), Buffer.from(audio_base64, "base64"));
-  await fs.writeFile(file, JSON.stringify(data));
+  await writeFile(path.join(dir, `${h}.mp3`), Buffer.from(audio_base64, "base64"));
+  await writeFile(file, JSON.stringify(data));
   return data;
 }
 
@@ -114,10 +120,10 @@ function conjugate(lang, inf) {
 
 let anthropic;
 
-async function getNl(h, text, lang) {
-  const file = path.join(CACHE, `${h}.nl.json`);
+async function getNl(dir, h, text, lang) {
+  const file = path.join(dir, `${h}.nl.json`);
   const cached = await readJson(file);
-  if (cached?.inf) return cached; // oudere cachebestanden zonder infinitieven worden opnieuw gemaakt
+  if (cached) return cached;
 
   const words = text.split(" ");
   anthropic ??= new Anthropic();
@@ -181,21 +187,66 @@ async function getNl(h, text, lang) {
     inf: out.words.map((w) => w.inf),
     sentence: out.sentence,
   };
-  await fs.writeFile(file, JSON.stringify(data));
+  await writeFile(file, JSON.stringify(data));
   return data;
 }
 
-// --- Eén zin: audio en vertaling samen, met deduplicatie voor prefetch ------
+// --- Boeken: elk boek heeft een eigen map met book.json en zijn cache --------
+
+const bookDir = (id) => path.join(BOOKS, id);
+const readBook = (id) => readJson(path.join(bookDir(id), "book.json"));
+
+async function listBooks() {
+  const entries = await fs.readdir(BOOKS, { withFileTypes: true });
+  const books = await Promise.all(entries.filter((e) => e.isDirectory()).map((e) => readBook(e.name)));
+  return books.filter(Boolean).sort((a, b) => a.title.localeCompare(b.title));
+}
+
+// done: aantal zinnen in de cache. ready: aantal vanaf het begin zonder gat; zoveel zien bezoekers.
+// todoChars: tekens die nog naar ElevenLabs moeten (ElevenLabs rekent per teken).
+async function progress(book) {
+  const files = new Set(await fs.readdir(bookDir(book.id)));
+  let done = 0, ready = 0, todoChars = 0;
+  book.sentences.forEach((s, i) => {
+    const h = hash(book.voice, s);
+    const audio = files.has(`${h}.mp3`) && files.has(`${h}.tts.json`);
+    if (audio && files.has(`${h}.nl.json`)) {
+      if (ready === i) ready++;
+      done++;
+    }
+    if (!audio) todoChars += s.length;
+  });
+  return { done, ready, todoChars };
+}
+
+async function createBook(title, lang, sentences) {
+  const slug = title.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "").slice(0, 60) || "boek";
+  const taken = new Set(await fs.readdir(BOOKS));
+  let id = slug;
+  for (let n = 2; taken.has(id); n++) id = `${slug}-${n}`;
+  // De stem hoort bij het boek: een andere stem in .env maakt bestaande boeken niet onbruikbaar.
+  const book = { id, title, lang, voice: VOICE, sentences };
+  await fs.mkdir(bookDir(id));
+  await writeFile(path.join(bookDir(id), "book.json"), JSON.stringify(book));
+  return book;
+}
+
+// --- Eén zin: audio en vertaling samen ---------------------------------------
+// Haalt op wat nog niet in de cache staat. Alleen het verwerken in het beheer mag dat laten gebeuren;
+// bezoekers krijgen alleen zinnen waarvan progress() zegt dat ze er al zijn.
 
 const inflight = new Map();
 
 function getSentence(book, i) {
   const text = book.sentences[i];
-  const h = hash(text);
-  if (!inflight.has(h)) {
+  const h = hash(book.voice, text);
+  const key = `${book.id}/${h}`;
+  if (!inflight.has(key)) {
+    const dir = bookDir(book.id);
     const p = Promise.all([
-      getTts(h, text, book.sentences[i - 1], book.sentences[i + 1]),
-      getNl(h, text, book.lang),
+      getTts(dir, h, book.voice, text, book.sentences[i - 1], book.sentences[i + 1]),
+      getNl(dir, h, text, book.lang),
     ])
       .then(([tts, nl]) => ({
         words: tts.words.map((w, k) => ({
@@ -204,20 +255,52 @@ function getSentence(book, i) {
           verb: conjugate(book.lang, nl.inf[k]),
         })),
         nl: nl.sentence,
-        audio: `/audio/${h}.mp3`,
+        audio: `/audio/${book.id}/${h}.mp3`,
       }))
-      .finally(() => inflight.delete(h));
-    inflight.set(h, p);
+      .finally(() => inflight.delete(key));
+    inflight.set(key, p);
   }
-  return inflight.get(h);
+  return inflight.get(key);
+}
+
+// --- Verwerken: een heel boek omzetten naar spraak en vertaling --------------
+
+const jobs = new Map(); // boek-id -> { running, stop, error }
+
+async function processBook(book) {
+  const job = { running: true, stop: false, error: null };
+  jobs.set(book.id, job);
+  let next = 0;
+  const worker = async () => {
+    while (!job.stop && next < book.sentences.length) {
+      const i = next++;
+      for (let attempt = 1; !job.stop; attempt++) {
+        try {
+          await getSentence(book, i);
+          break;
+        } catch (e) {
+          // Een vertaling die niet gelijk loopt of een drukke dienst lukt meestal bij een nieuwe poging.
+          if (attempt === 3) {
+            job.error = `Zin ${i + 1}: ${e.message}`;
+            job.stop = true;
+          } else await new Promise((r) => setTimeout(r, 2000 * attempt));
+        }
+      }
+    }
+  };
+  await Promise.all([worker(), worker()]); // twee zinnen tegelijk
+  job.running = false;
 }
 
 // --- HTTP -------------------------------------------------------------------
 
-const send = (res, status, body, type = "application/json") => {
-  res.writeHead(status, { "content-type": type });
+const send = (res, status, body, type = "application/json", headers = {}) => {
+  res.writeHead(status, { "content-type": type, ...headers });
   res.end(type === "application/json" ? JSON.stringify(body) : body);
 };
+
+const page = async (res, name) =>
+  send(res, 200, await fs.readFile(path.join(here, "public", name)), "text/html; charset=utf-8");
 
 async function readBody(req) {
   const chunks = [];
@@ -225,44 +308,122 @@ async function readBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-async function handle(req, res) {
-  const url = new URL(req.url, "http://localhost");
+function isAdmin(req) {
+  const m = /^Basic (.+)$/.exec(req.headers.authorization ?? "");
+  if (!m) return false;
+  const given = Buffer.from(m[1], "base64").toString("utf8").replace(/^[^:]*:/, ""); // gebruikersnaam telt niet
+  const sha = (s) => crypto.createHash("sha256").update(s).digest();
+  return crypto.timingSafeEqual(sha(given), sha(ADMIN_PASSWORD));
+}
+
+const ID = "([a-z0-9-]+)";
+
+// Beheer: alles onder /admin kost geld of wijzigt boeken, en zit achter het wachtwoord.
+async function handleAdmin(req, res, url) {
+  if (!ADMIN_PASSWORD)
+    return send(res, 503, "Het beheer staat uit: zet ADMIN_PASSWORD in .env en herstart.", "text/plain; charset=utf-8");
+  if (!isAdmin(req))
+    return send(res, 401, "Wachtwoord nodig", "text/plain; charset=utf-8",
+      { "www-authenticate": 'Basic realm="Voix beheer", charset="UTF-8"' });
   let m;
 
-  if (req.method === "GET" && url.pathname === "/") {
-    return send(res, 200, await fs.readFile(path.join(here, "public", "index.html")), "text/html; charset=utf-8");
+  if (req.method === "GET" && url.pathname === "/admin") return page(res, "admin.html");
+
+  if (req.method === "GET" && url.pathname === "/admin/api/books") {
+    const books = await listBooks();
+    return send(res, 200, await Promise.all(books.map(async (b) => {
+      const job = jobs.get(b.id);
+      return { id: b.id, title: b.title, lang: b.lang, total: b.sentences.length, ...(await progress(b)),
+               running: !!job?.running, error: job?.error ?? null };
+    })));
   }
 
-  if (req.method === "GET" && url.pathname === "/api/book") {
-    return send(res, 200, await readJson(BOOK));
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/book") {
-    const { text, lang } = await readBody(req);
+  if (req.method === "POST" && url.pathname === "/admin/api/books") {
+    const { title, text, lang } = await readBody(req);
     if (!LANGS[lang]) return send(res, 400, { error: "Onbekende taal" });
+    if (!String(title ?? "").trim()) return send(res, 400, { error: "Geef het boek een titel" });
     const sentences = splitSentences(String(text ?? ""), lang);
     if (!sentences.length) return send(res, 400, { error: "Geen tekst gevonden" });
-    const book = { lang, sentences };
-    await fs.writeFile(BOOK, JSON.stringify(book));
-    return send(res, 200, book);
+    const book = await createBook(String(title).trim(), lang, sentences);
+    return send(res, 200, { id: book.id });
   }
 
-  if (req.method === "GET" && (m = url.pathname.match(/^\/api\/sentence\/(\d+)$/))) {
-    const book = await readJson(BOOK);
-    const i = Number(m[1]);
-    if (!book || i >= book.sentences.length) return send(res, 404, { error: "Zin niet gevonden" });
-    return send(res, 200, await getSentence(book, i));
-  }
-
-  if (req.method === "GET" && (m = url.pathname.match(/^\/audio\/([0-9a-f]{40})\.mp3$/))) {
-    return send(res, 200, await fs.readFile(path.join(CACHE, `${m[1]}.mp3`)), "audio/mpeg");
+  if (req.method === "POST" && (m = url.pathname.match(`^/admin/api/books/${ID}/(process|stop)$`))) {
+    const book = await readBook(m[1]);
+    if (!book) return send(res, 404, { error: "Boek niet gevonden" });
+    const job = jobs.get(book.id);
+    if (m[2] === "stop") {
+      if (job) job.stop = true;
+    } else if (!job?.running) {
+      processBook(book).catch((e) => console.error(e));
+    }
+    return send(res, 200, {});
   }
 
   send(res, 404, { error: "Niet gevonden" });
 }
 
-await fs.mkdir(CACHE, { recursive: true });
-await fs.mkdir(path.dirname(BOOK), { recursive: true });
+// Bezoekers: alleen lezen wat al in de cache staat. Hier wordt nooit iets opgehaald bij ElevenLabs of Claude.
+async function handle(req, res) {
+  const url = new URL(req.url, "http://localhost");
+  let m;
+
+  if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) return handleAdmin(req, res, url);
+  if (req.method !== "GET") return send(res, 404, { error: "Niet gevonden" });
+
+  if (url.pathname === "/") return page(res, "index.html");
+
+  if (url.pathname === "/api/books") {
+    const out = [];
+    for (const b of await listBooks()) {
+      const { ready } = await progress(b);
+      if (ready) out.push({ id: b.id, title: b.title, lang: b.lang, count: ready });
+    }
+    return send(res, 200, out);
+  }
+
+  if ((m = url.pathname.match(`^/api/books/${ID}(?:/sentence/(\\d+))?$`))) {
+    const book = await readBook(m[1]);
+    const ready = book ? (await progress(book)).ready : 0;
+    if (!ready) return send(res, 404, { error: "Boek niet gevonden" });
+    if (m[2] === undefined)
+      return send(res, 200, { id: book.id, title: book.title, lang: book.lang, sentences: book.sentences.slice(0, ready) });
+    if (Number(m[2]) >= ready) return send(res, 404, { error: "Deze zin is nog niet beschikbaar" });
+    return send(res, 200, await getSentence(book, Number(m[2])));
+  }
+
+  if ((m = url.pathname.match(`^/audio/${ID}/([0-9a-f]{40})\\.mp3$`))) {
+    try {
+      return send(res, 200, await fs.readFile(path.join(bookDir(m[1]), `${m[2]}.mp3`)), "audio/mpeg");
+    } catch (e) {
+      if (e.code !== "ENOENT") throw e;
+    }
+  }
+
+  send(res, 404, { error: "Niet gevonden" });
+}
+
+// Eenmalig: het boek en de cache van de oude opzet (data/book.json en cache/) omzetten naar een boekmap.
+async function migrate() {
+  const oldBook = path.join(here, "data", "book.json");
+  const old = await readJson(oldBook);
+  if (!old) return;
+  const book = await createBook(old.sentences[0].slice(0, 60), old.lang, old.sentences);
+  for (const s of new Set(old.sentences)) {
+    const h = hash(VOICE, s);
+    // Oude vertalingen zonder infinitieven blijven achter en worden bij het verwerken opnieuw gemaakt.
+    const nl = await readJson(path.join(here, "cache", `${h}.nl.json`));
+    for (const ext of [".mp3", ".tts.json", ...(nl?.inf ? [".nl.json"] : [])]) {
+      await fs.rename(path.join(here, "cache", h + ext), path.join(bookDir(book.id), h + ext))
+        .catch((e) => { if (e.code !== "ENOENT") throw e; });
+    }
+  }
+  await fs.rm(oldBook);
+  console.log(`Bestaand boek overgezet naar books/${book.id}`);
+}
+
+await fs.mkdir(BOOKS, { recursive: true });
+await migrate();
 
 http
   .createServer((req, res) => {
