@@ -105,6 +105,9 @@
            margin-top: .5em; min-height: 1.3em; white-space: nowrap;
            opacity: 0; transform: translateY(-5px); transition: opacity .35s, transform .35s; }
   .w.seen .nl { opacity: 1; transform: none; }
+  /* Arabisch oogt bij dezelfde lettergrootte veel kleiner dan Latijns schrift */
+  .w .nl:lang(ar) { font-size: .48em; line-height: 1.4; letter-spacing: 0; }
+  #words[dir="rtl"] .w .src { background-position: right; }
   .w.verb { cursor: help; }
   .w.verb .src { text-decoration: underline dotted 1.5px color-mix(in srgb, var(--accent) 60%, transparent);
                  text-underline-offset: .24em; }
@@ -131,9 +134,10 @@
   #words.pending .src { animation: breathe 1.4s ease-in-out infinite; }
   @keyframes breathe { 50% { opacity: .45; } }
 
-  #full { margin: 34px 0 0; padding-left: 18px; border-left: 2px solid var(--accent); max-width: 62ch;
+  #full { margin: 34px 0 0; padding-inline-start: 18px; border-inline-start: 2px solid var(--accent); max-width: 62ch;
           font: italic 1.08rem/1.6 var(--serif); color: var(--ink);
           opacity: 0; transform: translateY(6px); transition: opacity .5s, transform .5s; }
+  #full:lang(ar) { font-size: 1.4rem; font-style: normal; line-height: 1.8; }
   #full.show { opacity: .85; transform: none; }
   #status { margin: 18px 0 0; color: #c0392b; white-space: pre-wrap; font-size: .9rem; }
   #status:empty { display: none; }
@@ -375,6 +379,7 @@ const t = (key, vars = {}) => TEXT[ui][key].replace(/\{(\w+)\}/g, (_, k) => vars
 const langName = (code) => new Intl.DisplayNames([ui], { type: "language" }).of(code);
 // De vertaling onder de woorden: in de taal van de pagina als het boek die heeft, anders de eerste van het boek.
 const glossLang = () => (book.targets.includes(ui) ? ui : book.targets[0]);
+const dirOf = (lang) => (lang === "ar" ? "rtl" : "ltr"); // Arabisch is de enige ElevenLabs-taal die van rechts naar links loopt
 
 function applyLang() {
   document.documentElement.lang = ui;
@@ -426,6 +431,8 @@ function renderWords(words) {
     src.textContent = w.t;
     const nl = document.createElement("span");
     nl.className = "nl";
+    nl.lang = glossLang();
+    nl.dir = "auto";
     nl.textContent = w.tr ?? "";
     el.append(src, nl);
     return el;
@@ -449,6 +456,10 @@ async function show(i, { play }) {
   $("words").className = "pending";
   $("ctxPrev").textContent = book.sentences[i - 1] ?? "";
   $("ctxNext").textContent = book.sentences[i + 1] ?? "";
+  // Taal en leesrichting, zodat de browser het juiste lettertype kiest en Arabisch van rechts naar links loopt.
+  for (const id of ["words", "ctxPrev", "ctxNext"]) { $(id).lang = book.lang; $(id).dir = dirOf(book.lang); }
+  $("full").lang = glossLang();
+  $("full").dir = dirOf(glossLang());
   $("full").className = "";
   $("full").textContent = "";
   $("status").textContent = "";
