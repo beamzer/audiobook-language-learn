@@ -56,6 +56,10 @@
           transition: border-color .2s, transform .2s; }
   button.chip:hover { border-color: var(--accent); transform: translateY(-1px); }
   .head-right { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); font-size: .82rem; }
+  .uilang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+  .uilang button { padding: 4px 9px; border-radius: 999px; font: 600 .7rem var(--sans); letter-spacing: .06em;
+                   color: var(--ink-soft); }
+  .uilang button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 
   main { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
 
@@ -214,7 +218,7 @@
   .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 40px; }
   .steps div { font-size: .88rem; color: var(--ink-soft); }
   .steps b { display: block; font: 600 1.02rem var(--serif); color: var(--ink); margin-bottom: 4px; }
-  .steps span { font: 600 .7rem var(--sans); letter-spacing: .14em; color: var(--accent); }
+  .steps span:first-child { font: 600 .7rem var(--sans); letter-spacing: .14em; color: var(--accent); }
 
   @media (max-width: 640px) {
     header { padding: 16px 16px 0; } main { padding: 0 16px; }
@@ -233,37 +237,39 @@
 <div id="bookbar"><i id="bar"></i></div>
 
 <header>
-  <div class="brand">Voix<b>.</b> <em>luisterboek leren</em></div>
+  <div class="brand">Voix<b>.</b> <em data-i18n="tagline"></em></div>
   <div class="head-right">
     <span id="meta"></span>
-    <button class="chip" id="otherBook" hidden>Ander boek</button>
+    <button class="chip" id="otherBook" data-i18n="otherBook" hidden></button>
+    <div class="uilang" role="group" aria-label="Language / Taal">
+      <button data-ui="nl">NL</button><button data-ui="en">EN</button>
+    </div>
   </div>
 </header>
 
 <main>
   <section id="setup" hidden>
-    <h1>Leer een taal door te <i>luisteren</i> en mee te lezen.</h1>
-    <p class="lead">Kies een Frans of Spaans boek. Je hoort het voorgelezen, ziet elk woord
-      oplichten en krijgt de Nederlandse betekenis er direct onder.</p>
+    <h1 data-i18n-html="heroTitle"></h1>
+    <p class="lead" data-i18n="heroLead"></p>
     <div id="books"></div>
     <p id="setupStatus"></p>
     <div class="steps">
-      <div><span>01</span><b>Luister</b>Elke zin wordt voorgelezen terwijl de woorden oplichten.</div>
-      <div><span>02</span><b>Begrijp</b>Onder elk woord verschijnt de betekenis in deze zin.</div>
-      <div><span>03</span><b>Spreek mee</b>Herhaal de zin stil en oefen zelf de uitspraak.</div>
+      <div><span>01</span><b data-i18n="step1"></b><span data-i18n="step1Text"></span></div>
+      <div><span>02</span><b data-i18n="step2"></b><span data-i18n="step2Text"></span></div>
+      <div><span>03</span><b data-i18n="step3"></b><span data-i18n="step3Text"></span></div>
     </div>
-    <a class="beheer" href="/admin">Beheer</a>
+    <a class="beheer" href="/admin" data-i18n="admin"></a>
   </section>
 
   <section id="player" hidden>
-    <button class="ctx" id="ctxPrev" title="Naar de vorige zin"></button>
+    <button class="ctx" id="ctxPrev" data-i18n-title="ctxPrev"></button>
     <div id="stage">
       <div id="badge"><span class="eq"><i></i><i></i><i></i><i></i></span><span class="dot"></span><span id="badgeText"></span></div>
       <div id="words"></div>
       <p id="full"></p>
       <p id="status"></p>
     </div>
-    <button class="ctx" id="ctxNext" title="Naar de volgende zin"></button>
+    <button class="ctx" id="ctxNext" data-i18n-title="ctxNext"></button>
   </section>
 </main>
 
@@ -271,9 +277,9 @@
 
 <footer id="dock" hidden>
   <div class="scrub">
-    <input type="range" id="seek" min="0" value="0" aria-label="Positie in het boek">
+    <input type="range" id="seek" min="0" value="0" data-i18n-aria="seek">
     <span id="count"></span>
-    <select id="speed" aria-label="Leessnelheid" title="Leessnelheid">
+    <select id="speed" data-i18n-aria="speed" data-i18n-title="speed">
       <option value="0.6">0,6×</option>
       <option value="0.75">0,75×</option>
       <option value="0.85">0,85×</option>
@@ -282,24 +288,24 @@
     </select>
   </div>
   <div class="row">
-    <label class="switch" title="Stop na elke zin, zodat je kunt herhalen">
-      <input type="checkbox" id="stopEach" checked><i></i><span>Pauze na elke zin</span></label>
+    <label class="switch" data-i18n-title="stopEachTitle">
+      <input type="checkbox" id="stopEach" checked><i></i><span data-i18n="stopEach"></span></label>
     <div class="btns">
-      <button class="ib" id="prev" title="Vorige zin (←)">
-        <svg viewBox="0 0 24 24"><path d="M19 5v14l-10-7z"/><path d="M5 5v14"/></svg><span>Vorige</span></button>
-      <button class="ib" id="silent" title="Stil herhalen: spreek zelf mee (S)">
-        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Stil</span></button>
-      <button id="toggle" title="Afspelen / pauze (spatie)" aria-label="Afspelen of pauzeren">
+      <button class="ib" id="prev" data-i18n-title="prevTitle">
+        <svg viewBox="0 0 24 24"><path d="M19 5v14l-10-7z"/><path d="M5 5v14"/></svg><span data-i18n="prev"></span></button>
+      <button class="ib" id="silent" data-i18n-title="silentTitle">
+        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span data-i18n="silent"></span></button>
+      <button id="toggle" data-i18n-title="toggleTitle" data-i18n-aria="toggle">
         <svg class="ring" viewBox="0 0 82 82"><circle class="track" cx="41" cy="41" r="39"/><circle class="prog" id="ring" cx="41" cy="41" r="39"/></svg>
         <svg class="icon i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
         <svg class="icon i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4.5" height="14" rx="1.2"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.2"/></svg>
       </button>
-      <button class="ib" id="again" title="Opnieuw met geluid (R)">
-        <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v5h5"/></svg><span>Opnieuw</span></button>
-      <button class="ib" id="next" title="Volgende zin (→)">
-        <svg viewBox="0 0 24 24"><path d="M5 5v14l10-7z"/><path d="M19 5v14"/></svg><span>Volgende</span></button>
+      <button class="ib" id="again" data-i18n-title="againTitle">
+        <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v5h5"/></svg><span data-i18n="again"></span></button>
+      <button class="ib" id="next" data-i18n-title="nextTitle">
+        <svg viewBox="0 0 24 24"><path d="M5 5v14l10-7z"/><path d="M19 5v14"/></svg><span data-i18n="next"></span></button>
     </div>
-    <div class="keys"><kbd>spatie</kbd> <kbd>S</kbd> <kbd>R</kbd> <kbd>←</kbd> <kbd>→</kbd></div>
+    <div class="keys"><kbd data-i18n="space"></kbd> <kbd>S</kbd> <kbd>R</kbd> <kbd>←</kbd> <kbd>→</kbd></div>
   </div>
 </footer>
 
@@ -319,7 +325,67 @@ function setSpeed(v) {
   setSpeed(Number(saved));
 }
 $("speed").addEventListener("change", (e) => { setSpeed(Number(e.target.value)); e.target.blur(); });
-const LANGS = { fr: "Frans", es: "Spaans" };
+// --- Taal van de pagina (Nederlands of Engels) -------------------------------
+
+const TEXT = {
+  nl: {
+    tagline: "luisterboek leren", otherBook: "Ander boek", admin: "Beheer",
+    heroTitle: "Leer een taal door te <i>luisteren</i> en mee te lezen.",
+    heroLead: "Kies een boek. Je hoort het voorgelezen, ziet elk woord oplichten en krijgt de betekenis er direct onder.",
+    step1: "Luister", step1Text: "Elke zin wordt voorgelezen terwijl de woorden oplichten.",
+    step2: "Begrijp", step2Text: "Onder elk woord verschijnt de betekenis in deze zin.",
+    step3: "Spreek mee", step3Text: "Herhaal de zin stil en oefen zelf de uitspraak.",
+    ctxPrev: "Naar de vorige zin", ctxNext: "Naar de volgende zin",
+    seek: "Positie in het boek", speed: "Leessnelheid",
+    stopEach: "Pauze na elke zin", stopEachTitle: "Stop na elke zin, zodat je kunt herhalen",
+    prev: "Vorige", prevTitle: "Vorige zin (←)", silent: "Stil", silentTitle: "Stil herhalen: spreek zelf mee (S)",
+    toggle: "Afspelen of pauzeren", toggleTitle: "Afspelen / pauze (spatie)",
+    again: "Opnieuw", againTitle: "Opnieuw met geluid (R)", next: "Volgende", nextTitle: "Volgende zin (→)",
+    space: "spatie",
+    failed: "Er ging iets mis", loading: "Zin laden…", playing: "Luister", yourTurn: "Jouw beurt — spreek mee",
+    end: "Einde van de tekst", spaceNext: "Spatie voor de volgende zin", paused: "Gepauzeerd",
+    spacePlay: "Spatie om te luisteren", verb: "werkwoord",
+    sentences: "zinnen", start: "Begin met lezen", resume: "Verder bij zin {n}",
+    noBooks: "Er zijn nog geen boeken beschikbaar.",
+  },
+  en: {
+    tagline: "learn with audiobooks", otherBook: "Other book", admin: "Admin",
+    heroTitle: "Learn a language by <i>listening</i> and reading along.",
+    heroLead: "Choose a book. You hear it read aloud, see each word light up and get its meaning right below it.",
+    step1: "Listen", step1Text: "Each sentence is read aloud while the words light up.",
+    step2: "Understand", step2Text: "Below each word you see what it means in this sentence.",
+    step3: "Speak along", step3Text: "Replay the sentence silently and practise the pronunciation yourself.",
+    ctxPrev: "Go to the previous sentence", ctxNext: "Go to the next sentence",
+    seek: "Position in the book", speed: "Reading speed",
+    stopEach: "Pause after each sentence", stopEachTitle: "Stop after each sentence, so you can repeat it",
+    prev: "Previous", prevTitle: "Previous sentence (←)", silent: "Silent", silentTitle: "Replay silently: speak along (S)",
+    toggle: "Play or pause", toggleTitle: "Play / pause (space)",
+    again: "Again", againTitle: "Replay with sound (R)", next: "Next", nextTitle: "Next sentence (→)",
+    space: "space",
+    failed: "Something went wrong", loading: "Loading sentence…", playing: "Listen", yourTurn: "Your turn — speak along",
+    end: "End of the text", spaceNext: "Space for the next sentence", paused: "Paused",
+    spacePlay: "Space to listen", verb: "verb",
+    sentences: "sentences", start: "Start reading", resume: "Continue at sentence {n}",
+    noBooks: "There are no books available yet.",
+  },
+};
+let ui = "nl";
+try { if (TEXT[localStorage.getItem("ui")]) ui = localStorage.getItem("ui"); } catch {}
+const t = (key, vars = {}) => TEXT[ui][key].replace(/\{(\w+)\}/g, (_, k) => vars[k]);
+const langName = (code) => new Intl.DisplayNames([ui], { type: "language" }).of(code);
+// De vertaling onder de woorden: in de taal van de pagina als het boek die heeft, anders de eerste van het boek.
+const glossLang = () => (book.targets.includes(ui) ? ui : book.targets[0]);
+
+function applyLang() {
+  document.documentElement.lang = ui;
+  for (const e of document.querySelectorAll("[data-i18n]")) e.textContent = t(e.dataset.i18n);
+  for (const e of document.querySelectorAll("[data-i18n-html]")) e.innerHTML = t(e.dataset.i18nHtml);
+  for (const e of document.querySelectorAll("[data-i18n-title]")) e.title = t(e.dataset.i18nTitle);
+  for (const e of document.querySelectorAll("[data-i18n-aria]")) e.setAttribute("aria-label", t(e.dataset.i18nAria));
+  for (const b of document.querySelectorAll("[data-ui]")) b.setAttribute("aria-pressed", b.dataset.ui === ui);
+}
+applyLang();
+
 const RING = 245; // omtrek van de voortgangsring
 
 let book = null;
@@ -337,7 +403,7 @@ let lastActive = -1;
 function load(i) {
   if (!loaded.has(i)) {
     const p = (async () => {
-      const res = await fetch(`/api/books/${book.id}/sentence/${i}`);
+      const res = await fetch(`/api/books/${book.id}/sentence/${i}?tr=${glossLang()}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       // Als blob laden, zodat terugspoelen altijd werkt.
@@ -360,7 +426,7 @@ function renderWords(words) {
     src.textContent = w.t;
     const nl = document.createElement("span");
     nl.className = "nl";
-    nl.textContent = w.nl ?? "";
+    nl.textContent = w.tr ?? "";
     el.append(src, nl);
     return el;
   });
@@ -391,7 +457,7 @@ async function show(i, { play }) {
   $("seek").style.setProperty("--fill", `${n > 1 ? (i / (n - 1)) * 100 : 100}%`);
   $("bar").style.width = `${((i + 1) / n) * 100}%`;
   $("count").textContent = `${i + 1} / ${n}`;
-  $("meta").textContent = `${LANGS[book.lang]} · ${Math.round(((i + 1) / n) * 100)}%`;
+  $("meta").textContent = `${langName(book.lang)} · ${Math.round(((i + 1) / n) * 100)}%`;
   window.scrollTo({ top: 0 });
   updateButtons();
 
@@ -412,11 +478,11 @@ async function show(i, { play }) {
   $("words").className = "";
   if (s.words.length !== wordEls.length) renderWords(s.words);
   s.words.forEach((w, k) => {
-    wordEls[k].lastChild.textContent = w.nl;
+    wordEls[k].lastChild.textContent = w.tr;
     wordEls[k].classList.toggle("verb", !!w.verb);
     wordEls[k].verb = w.verb;
   });
-  $("full").textContent = s.nl;
+  $("full").textContent = s.tr;
   audio.src = s.url;
   updateButtons();
 
@@ -474,13 +540,13 @@ function updateButtons() {
   const state = !audio.paused ? (audio.muted ? "silent" : "playing") : "idle";
   document.body.dataset.state = state;
   $("badgeText").textContent =
-    failed ? "Er ging iets mis"
-    : !ready ? "Zin laden…"
-    : state === "playing" ? "Luister"
-    : state === "silent" ? "Jouw beurt — spreek mee"
-    : audio.ended ? (last ? "Einde van de tekst" : "Spatie voor de volgende zin")
-    : audio.currentTime > 0 ? "Gepauzeerd"
-    : "Spatie om te luisteren";
+    t(failed ? "failed"
+    : !ready ? "loading"
+    : state === "playing" ? "playing"
+    : state === "silent" ? "yourTurn"
+    : audio.ended ? (last ? "end" : "spaceNext")
+    : audio.currentTime > 0 ? "paused"
+    : "spacePlay");
   $("toggle").disabled = $("silent").disabled = $("again").disabled = !ready;
   $("prev").disabled = idx === 0;
   $("next").disabled = last;
@@ -543,7 +609,7 @@ function showPop(wordEl) {
     .replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "").split(/['’]/).pop().split("-")[0];
 
   const h = el("h3", v.inf);
-  h.append(el("small", "werkwoord"));
+  h.append(el("small", t("verb")));
   const grid = el("div", null, "grid");
   for (const t of v.tenses) {
     const ul = el("ul");
@@ -607,18 +673,34 @@ async function openSetup() {
   $("bar").style.width = 0;
 
   const books = await (await fetch("/api/books")).json();
-  $("setupStatus").textContent = books.length ? "" : "Er zijn nog geen boeken beschikbaar.";
+  $("setupStatus").textContent = books.length ? "" : t("noBooks");
   $("books").replaceChildren(...books.map((b) => {
     const btn = el("button", null, "book");
     const left = el("div");
-    left.append(el("b", b.title), el("span", `${LANGS[b.lang]} · ${b.count} zinnen`));
-    btn.append(left, el("i", savedPos(b.id) ? `Verder bij zin ${savedPos(b.id) + 1}` : "Begin met lezen"));
+    const langs = `${langName(b.lang)} → ${b.targets.map(langName).join(", ")}`;
+    left.append(el("b", b.title), el("span", `${langs} · ${b.count} ${t("sentences")}`));
+    btn.append(left, el("i", savedPos(b.id) ? t("resume", { n: savedPos(b.id) + 1 }) : t("start")));
     btn.onclick = () => openPlayer(b.id);
     return btn;
   }));
 }
 
 $("otherBook").onclick = openSetup;
+
+// Andere paginataal: teksten omzetten en, als je aan het lezen bent, de zin opnieuw laden
+// (de vertaling onder de woorden kan dan in een andere taal komen).
+for (const b of document.querySelectorAll("[data-ui]")) {
+  b.onclick = () => {
+    if (b.dataset.ui === ui) return;
+    ui = b.dataset.ui;
+    try { localStorage.setItem("ui", ui); } catch {}
+    applyLang();
+    if (!$("player").hidden) {
+      loaded = new Map();
+      show(idx, { play: false });
+    } else openSetup();
+  };
+}
 
 // Terug naar het boek waar je mee bezig was, anders de lijst met boeken.
 if (localStorage.getItem("book")) openPlayer(localStorage.getItem("book"));

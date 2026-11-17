@@ -1,35 +1,58 @@
-# Voix — luisterboek leren
+# Voix — learn a language with audiobooks
 
-Webapp om Frans of Spaans te leren met een voorgelezen boek. Je kiest een boek, hoort het zin voor zin
-voorgelezen, ziet elk woord oplichten en krijgt de Nederlandse betekenis er direct onder.
+A web app for learning a language by listening to a book and reading along. You choose a book, hear it
+read aloud sentence by sentence, see each word light up and get its meaning in your own language right
+below it.
 
-![Voix in gebruik: een Franse zin met de Nederlandse betekenis onder elk woord en de vervoegingen van "faire" bij mouse-over](voix-in-action.png)
+![Voix in use: a French sentence with the Dutch meaning below each word and the conjugations of "faire" on mouse-over](voix-in-action.png)
 
-- Woord-voor-woord highlighting, gelijk met de stem
-- Nederlandse betekenis per woord, plus een vertaling van de hele zin
-- Per zin pauzeren (standaard aan), stil herhalen (zelf meespreken) of opnieuw beluisteren
-- Instelbare leessnelheid (0,6× tot 1,15×), zonder dat de stem hoger of lager gaat klinken
-- Vervoegingen van werkwoorden bij mouse-over
-- Een bibliotheek met boeken: bezoekers lezen wat al is omgezet, zonder dat het jou iets kost
-- Een aparte beheerpagina met wachtwoord, waar je nieuwe boeken toevoegt en laat omzetten
-- Een cache per boek: elke zin wordt maar één keer opgehaald en betaald (zie [Caching](#caching))
+- Word-by-word highlighting, in sync with the voice
+- The meaning of each word in your language, plus a translation of the whole sentence
+- Pause after each sentence (on by default), replay silently (speak along yourself) or listen again
+- Adjustable reading speed (0.6× to 1.15×), without changing the pitch of the voice
+- Any language ElevenLabs can read aloud, translated into one or more languages of your choice
+- Verb conjugations on mouse-over (French and Spanish for now)
+- A library of books: visitors read what has already been converted, at no cost to you
+- A separate password-protected admin page where you add and convert new books
+- A cache per book: each sentence is fetched and paid for only once (see [Caching](#caching))
+- Interface in Dutch (default) and English
 
-## Wat je nodig hebt
+## Languages
 
-- Node.js 22.9 of nieuwer
-- Een API-sleutel van [ElevenLabs](https://elevenlabs.io) (stem en tijdstempels per woord)
-- Een API-sleutel van [Anthropic](https://console.anthropic.com) (vertaling, met Claude Haiku)
+**Book language.** A book can be in any of the 29 languages of the ElevenLabs `eleven_multilingual_v2`
+model: Arabic, Bulgarian, Chinese, Croatian, Czech, Danish, Dutch, English, Filipino, Finnish, French,
+German, Greek, Hindi, Indonesian, Italian, Japanese, Korean, Malay, Polish, Portuguese, Romanian, Russian,
+Slovak, Spanish, Swedish, Tamil, Turkish and Ukrainian. For Chinese and Japanese, which have no spaces
+between words, word segmentation (`Intl.Segmenter`) determines the words.
 
-## Installeren
+**Translation languages.** When you add a book, you choose which languages it is translated into, for
+example Dutch and English. Each translation language costs extra Claude tokens when processing, but no
+extra ElevenLabs characters. Visitors see the translation in the language of the interface if the book
+has it, and otherwise in the book's first translation language.
+
+**Verb conjugations.** The conjugation card on mouse-over is available for French and Spanish. It comes
+from data files, not from AI. Other languages work fully, just without that card; the app itself is not
+limited to these two languages.
+
+**Interface.** The pages are in Dutch by default; the NL/EN switch at the top right changes the language
+and the choice is remembered.
+
+## What you need
+
+- Node.js 22.9 or newer
+- An API key from [ElevenLabs](https://elevenlabs.io) (voice and timestamps per word)
+- An API key from [Anthropic](https://console.anthropic.com) (translation, with Claude Haiku)
+
+## Installation
 
 ```bash
-git clone git@github.com:beamzer/audiobook-language-learn.git
+git clone https://github.com/beamzer/audiobook-language-learn.git
 cd audiobook-language-learn
 npm install
 cp .env.example .env
 ```
 
-Vul daarna in `.env` je twee sleutels en een `ADMIN_PASSWORD` in en start de server:
+Then fill in your two keys and an `ADMIN_PASSWORD` in `.env` and start the server:
 
 ```bash
 npm start
@@ -37,42 +60,43 @@ npm start
 
 Open http://localhost:3000.
 
-## Twee pagina's
+## Two pages
 
-| Pagina | Voor wie | Wat het kost |
+| Page | For whom | What it costs |
 | --- | --- | --- |
-| `/` | Iedereen: boek kiezen en lezen | Niets. Bezoekers krijgen alleen wat al in de cache staat. |
-| `/admin` | Jij, met wachtwoord: boeken toevoegen en verwerken | Verwerken kost tekens bij ElevenLabs en tokens bij Claude. |
+| `/` | Everyone: choose a book and read | Nothing. Visitors only get what is already in the cache. |
+| `/admin` | You, with a password: add and process books | Processing costs characters at ElevenLabs and tokens at Claude. |
 
-Op `/admin` voeg je een boek toe (titel, taal en tekst plakken of een .txt-bestand). Dat kost nog niets.
-Met **Verwerken** wordt het boek zin voor zin omgezet naar spraak en vertaling; de pagina toont de
-voortgang en hoeveel tekens er nog naar ElevenLabs gaan. Je kunt tussentijds stoppen en later verdergaan.
-Bezoekers zien een boek zodra de eerste zinnen klaar zijn, en altijd alleen het deel dat al is omgezet.
+On `/admin` you add a book: a title, the language of the book, the translation languages, and the text
+(pasted or as a .txt file). That costs nothing yet. **Process** converts the book sentence by sentence
+into speech and translations; the page shows the progress and how many characters are still to go to
+ElevenLabs. You can stop in between and continue later. Visitors see a book as soon as the first
+sentences are done, and always only the part that has been converted.
 
-Het wachtwoord is `ADMIN_PASSWORD` uit `.env`; de gebruikersnaam maakt niet uit. Zonder `ADMIN_PASSWORD`
-staat het beheer uit. De publieke pagina roept nooit ElevenLabs of Claude aan.
+The password is `ADMIN_PASSWORD` from `.env`; the user name does not matter. Without `ADMIN_PASSWORD` the
+admin page is disabled. The public page never calls ElevenLabs or Claude.
 
-## Bijwerken
+## Updating
 
 ```bash
 git pull
 npm install
 ```
 
-Herstart daarna de server.
+Then restart the server.
 
-## Op een webserver
+## On a web server
 
-De server luistert alleen op `127.0.0.1`; zet er een reverse proxy met https voor. De hoofdpagina is
-openbaar en kost niets; alleen `/admin` zit achter het wachtwoord uit `.env`. Kies een lang wachtwoord
-en gebruik altijd https, anders gaat het wachtwoord leesbaar over het internet.
+The server only listens on `127.0.0.1`; put a reverse proxy with https in front of it. The main page is
+public and costs nothing; only `/admin` is behind the password from `.env`. Choose a long password and
+always use https, otherwise the password travels over the internet in readable form.
 
-De poort stel je in met `PORT` in `.env`.
+You set the port with `PORT` in `.env`.
 
-### Apache als voorkant (met https)
+### Apache in front (with https)
 
-Gebruik een eigen subdomein, bijvoorbeeld `voix.jouwdomein.nl`: de pagina gebruikt absolute paden
-(`/api/...`, `/audio/...`), dus onder een subpad werkt het niet. De commando's gelden voor Debian/Ubuntu.
+Use a subdomain of its own, for example `voix.yourdomain.com`: the pages use absolute paths (`/api/...`,
+`/audio/...`), so it does not work under a sub-path. The commands are for Debian/Ubuntu.
 
 1. Modules:
 
@@ -80,13 +104,13 @@ Gebruik een eigen subdomein, bijvoorbeeld `voix.jouwdomein.nl`: de pagina gebrui
    sudo a2enmod proxy proxy_http ssl headers
    ```
 
-2. Virtual host. Begin met een gewone http-host op poort 80; certbot maakt daar zelf de https-host
-   van (met de certificaatregels) en neemt de rest over. Zet je meteen SSL-regels met nog niet
-   bestaande certificaatbestanden in de config, dan start Apache niet en lukt certbot niet.
+2. Virtual host. Start with a plain http host on port 80; certbot turns it into the https host itself
+   (with the certificate lines) and copies the rest. If you add SSL lines pointing to certificate files
+   that do not exist yet, Apache will not start and certbot fails.
 
    ```apache
    <VirtualHost *:80>
-       ServerName voix.jouwdomein.nl
+       ServerName voix.yourdomain.com
 
        ProxyPreserveHost On
        ProxyTimeout 120
@@ -95,19 +119,19 @@ Gebruik een eigen subdomein, bijvoorbeeld `voix.jouwdomein.nl`: de pagina gebrui
    </VirtualHost>
    ```
 
-   Zet in Apache geen eigen wachtwoord (`AuthType Basic`) op deze host: bezoekers moeten de hoofdpagina
-   kunnen openen, en het beheer beveiligt de app zelf.
+   Do not add a password of your own in Apache (`AuthType Basic`) on this host: visitors must be able to
+   open the main page, and the app protects the admin page itself.
 
-   Laad de config en vraag het certificaat aan. Kies bij de vraag over doorsturen voor een redirect
-   naar https; https is verplicht, anders gaat het beheerwachtwoord leesbaar over het internet. Het domein
-   moet dan al naar de server wijzen en poort 80 moet bereikbaar zijn.
+   Load the config and request the certificate. When certbot asks about redirecting, choose a redirect
+   to https; https is required, otherwise the admin password travels over the internet in readable form.
+   The domain must already point to the server and port 80 must be reachable.
 
    ```bash
    sudo apache2ctl configtest && sudo systemctl reload apache2
-   sudo certbot --apache -d voix.jouwdomein.nl
+   sudo certbot --apache -d voix.yourdomain.com
    ```
 
-3. De app laten draaien met systemd, in `/etc/systemd/system/voix.service`:
+3. Keep the app running with systemd, in `/etc/systemd/system/voix.service`:
 
    ```ini
    [Unit]
@@ -115,65 +139,68 @@ Gebruik een eigen subdomein, bijvoorbeeld `voix.jouwdomein.nl`: de pagina gebrui
    After=network.target
 
    [Service]
-   WorkingDirectory=/pad/naar/audiobook-language-learn
+   WorkingDirectory=/path/to/audiobook-language-learn
    ExecStart=/usr/bin/node --env-file-if-exists=.env server.js
    Restart=on-failure
-   User=jouwgebruiker
+   User=youruser
 
    [Install]
    WantedBy=multi-user.target
    ```
 
-   Controleer met `which node` of het pad klopt en of het Node 22.9 of nieuwer is. Starten:
+   Check with `which node` that the path is right and that it is Node 22.9 or newer. Start it:
 
    ```bash
    sudo systemctl enable --now voix
    ```
 
-   Na een `git pull` herstart je met `sudo systemctl restart voix`.
+   After a `git pull`, restart with `sudo systemctl restart voix`.
 
-## Hoe het werkt
+## How it works
 
-| Onderdeel | Bron |
+| Part | Source |
 | --- | --- |
-| Audio en tijdstempels per woord | ElevenLabs text-to-speech (`with-timestamps`) |
-| Vertaling per woord en herkenning van werkwoorden | Claude Haiku 5.5 |
-| Franse vervoegingen | Databestand [french-verbs-lefff](https://www.npmjs.com/package/french-verbs-lefff) |
-| Spaanse vervoegingen | Regelgebaseerd, via [spanish-verbs](https://www.npmjs.com/package/spanish-verbs) |
+| Audio and timestamps per word | ElevenLabs text-to-speech (`with-timestamps`, `eleven_multilingual_v2`) |
+| Translation per word and verb detection | Claude Haiku 5.5 |
+| French conjugations | Data file [french-verbs-lefff](https://www.npmjs.com/package/french-verbs-lefff) |
+| Spanish conjugations | Rule-based, via [spanish-verbs](https://www.npmjs.com/package/spanish-verbs) |
 
 ## Caching
 
-Elk boek heeft een eigen map `books/<naam>/` met daarin `book.json` (titel, taal, stem en de zinnen) en
-per zin de audio, de woordtijden, de Nederlandse vertaling en de herkende werkwoorden. Een zin wordt dus
-**maar één keer opgehaald en betaald**; daarna komt hij van schijf.
+Each book has a folder of its own, `books/<name>/`, containing `book.json` (title, language, translation
+languages, voice and the sentences) and, per sentence, the audio, the word timings, and for each
+translation language the translation and the detected verbs. A sentence is therefore **fetched and paid
+for only once**; after that it comes from disk.
 
-Waarom dat een voordeel is:
+Why that is an advantage:
 
-- **Goedkoop:** ElevenLabs rekent per teken en Claude per token. Je betaalt één keer voor het omzetten
-  van een boek. Daarna kost lezen, herlezen en herhalen niets, voor jou en voor elke bezoeker.
-- **Geen verrassingen:** bezoekers kunnen geen kosten maken, want de publieke pagina leest alleen uit de
-  cache. Alleen verwerken op de beheerpagina kost geld.
-- **Snel:** een zin uit de cache is er direct.
-- **Altijd dezelfde stem en vertaling:** de uitspraak en betekenis blijven bij herhaling gelijk, ook na
-  herstarten of verhuizen van de server.
-- **Verplaatsbaar:** een boek is één map. Kopieer `books/<naam>/` naar een andere server en het boek is
-  daar direct beschikbaar, zonder opnieuw te betalen.
+- **Cheap:** ElevenLabs charges per character and Claude per token. You pay once to convert a book.
+  After that, reading, rereading and repeating cost nothing, for you and for every visitor.
+- **No surprises:** visitors cannot cause costs, because the public page only reads from the cache.
+  Only processing on the admin page costs money.
+- **Fast:** a sentence from the cache is there instantly.
+- **Always the same voice and translation:** pronunciation and meaning stay the same on every repeat,
+  also after restarting or moving the server.
+- **Portable:** a book is one folder. Copy `books/<name>/` to another server and the book is available
+  there right away, without paying again.
 
-Hoe de cache werkt:
+How the cache works:
 
-- Een zin staat in de cache op basis van zijn tekst en de stem van het boek. De stem wordt bij het
-  toevoegen vastgelegd; een andere `ELEVENLABS_VOICE_ID` geldt alleen voor boeken die je daarna toevoegt.
-- Verwerken slaat zinnen over die er al zijn, en gaat na stoppen of een fout verder waar het was.
-- De vervoegingen bij mouse-over komen uit een bestand en kosten nooit iets.
-- Een uur audio is ongeveer 55 MB.
-- Een boek verwijderen doe je door de map `books/<naam>/` te verwijderen.
-- `books/` en `.env` staan niet in git.
+- A sentence is cached by its text and the voice of the book. The voice is fixed when the book is
+  added; a different `ELEVENLABS_VOICE_ID` only applies to books you add afterwards.
+- Processing skips sentences that are already done, and after a stop or an error it continues where it
+  left off.
+- The conjugations on mouse-over come from data files and never cost anything.
+- One hour of audio is about 55 MB.
+- To delete a book, delete its folder `books/<name>/`.
+- `books/` and `.env` are not in git.
 
-Had je al een boek uit een eerdere versie (`data/book.json` en `cache/`), dan zet de server dat bij de
-eerste start om naar een boekmap. Klik daarna op de beheerpagina op **Verder verwerken** om het af te maken.
+If you have a book from an earlier version (`data/book.json` and `cache/`), the server converts it to a
+book folder on first start, with Dutch as the translation language. Then click **Continue processing** on
+the admin page to finish it.
 
-## Bestanden
+## Files
 
-- `server.js` — de server: boeken, verwerken, ElevenLabs, Claude, vervoegingen, cache
-- `public/index.html` — de pagina voor bezoekers: boek kiezen en lezen
-- `public/admin.html` — de beheerpagina: boeken toevoegen en verwerken
+- `server.js` — the server: books, processing, ElevenLabs, Claude, conjugations, cache
+- `public/index.html` — the page for visitors: choose a book and read
+- `public/admin.html` — the admin page: add and process books
